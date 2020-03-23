@@ -1,0 +1,39 @@
+image: atlassian/default-image:2
+
+definitions:
+  steps:
+    # Full build of the image
+    - step: &publish
+        name: publish latest image
+        services:
+          - docker
+        script: 
+          # Set $DOCKER_VERSION to latest by default, and subsequent IMAGE_NAME
+          - export IMAGE_NAME=moveax/argocd:latest
+          # build the Docker image 
+          - docker build  -t $IMAGE_NAME   .
+          # authenticate with the Docker Hub registry
+          - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
+          # push the new Docker image to the Docker registry
+          - docker push $IMAGE_NAME
+    - step: &publish_tagged
+        name: publish with tag
+        services:
+          - docker
+        script: 
+          # Set $DOCKER_VERSION to bitbucket tag, and subsequent IMAGE_NAME
+          - export IMAGE_NAME=moveax/argocd:$BITBUCKET_TAG
+          # build the Docker image 
+          - docker build  -t $IMAGE_NAME   .
+          # authenticate with the Docker Hub registry
+          - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
+          # push the new Docker image to the Docker registry
+          - docker push $IMAGE_NAME
+
+pipelines:
+  tags:
+    "**":
+      - step: *publish_tagged
+  branches:
+    master:
+      - step: *publish
