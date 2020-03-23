@@ -1,24 +1,26 @@
+FROM golang:1.13 as builder
+
+RUN git clone https://github.com/moveaxlab/sops-helm-wrapper.git && \
+    cd sops-helm-wrapper && \
+    go build
 
 FROM argoproj/argocd:v1.4.2
-# Switch to root for the ability to perform install
+
 USER root
 
-# Install tools needed for your repo-server to retrieve & decrypt secrets, render manifests 
-# (e.g. curl, awscli, gpg, sops)
 RUN apt-get update && \
     apt-get install -y \
-        curl \
-        awscli \
-        sudo -y \
-        gpg && \
+      gpg && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    usermod -aG sudo argocd
-ENV HELM_BIN="/usr/local/bin/helm"
-ENV HELM_HOME="/home/argocd/.helm"
-RUN mkdir -p /home/argocd/.helm/plugins && \
-    helm plugin install https://github.com/futuresimple/helm-secrets
-RUN mv /usr/local/bin/argocd-repo-server /usr/local/bin/_argocd-repo-server
-COPY argocd-server-wrapper /usr/local/bin/argocd-repo-server
-# Switch back to non-root user
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN mv /usr/local/bin/argocd-repo-server /usr/local/bin/_argocd-repo-server && \
+    mv /usr/local/bin/helm /usr/local/bin/_helm
+
+# copy sops-helm-wrapper to be used as helm
+COPY --from=builder /go/sops-helm-wrapper/sops-helm-wrapper /usr/local/bin/helm
+# copy Argo-repo-server wrapper to import GPG private key on run
+COPY argocd-repo-server-wrapper /usr/local/bin/argocd-repo-server
+
+# Switch back to ArgoCD user
 USER argocd
